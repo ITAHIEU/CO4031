@@ -39,24 +39,16 @@ SELECT
     CASE WHEN DAYOFWEEK(CURDATE()) IN (1,7) THEN TRUE ELSE FALSE END as is_weekend;
 
 -- 2. Populate DIM_Brand
-INSERT IGNORE INTO DIM_Brand (brand_name, brand_type)
+INSERT IGNORE INTO DIM_Brand (brand_name)
 SELECT DISTINCT
-    COALESCE(NULLIF(TRIM(brand_name), ''), 'Unknown') as brand_name,
-    CASE 
-        WHEN TRIM(brand_name) LIKE '%official%' THEN 'Official'
-        ELSE 'Other'
-    END as brand_type
+    COALESCE(NULLIF(TRIM(brand_name), ''), 'Unknown') as brand_name
 FROM STAGING_Products
 WHERE brand_name IS NOT NULL;
 
 -- 3. Populate DIM_Seller  
-INSERT IGNORE INTO DIM_Seller (seller_name, seller_type)
+INSERT IGNORE INTO DIM_Seller (seller_name)
 SELECT DISTINCT
-    COALESCE(NULLIF(TRIM(seller_name), ''), 'Unknown') as seller_name,
-    CASE 
-        WHEN TRIM(seller_name) = 'Tiki Trading' THEN 'Tiki Trading'
-        ELSE 'Other'
-    END as seller_type
+    COALESCE(NULLIF(TRIM(seller_name), ''), 'Unknown') as seller_name
 FROM STAGING_Products
 WHERE seller_name IS NOT NULL;
 

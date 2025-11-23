@@ -6,12 +6,14 @@
 
 USE ProductDW;
 
+-- Tắt foreign key checks để có thể drop tables
+SET FOREIGN_KEY_CHECKS = 0;
+
 -- 1. DIM_Brand
 DROP TABLE IF EXISTS DIM_Brand;
 CREATE TABLE DIM_Brand (
     brand_id INT AUTO_INCREMENT PRIMARY KEY,
     brand_name VARCHAR(255) NOT NULL,
-    brand_type ENUM('Official', 'Other') DEFAULT 'Other',
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_brand_name (brand_name)
 );
@@ -21,7 +23,6 @@ DROP TABLE IF EXISTS DIM_Seller;
 CREATE TABLE DIM_Seller (
     seller_id INT AUTO_INCREMENT PRIMARY KEY,
     seller_name VARCHAR(255) NOT NULL,
-    seller_type ENUM('Tiki Trading', 'Other') DEFAULT 'Other',
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_seller_name (seller_name)
 );
@@ -76,6 +77,9 @@ CREATE TABLE DIM_Product (
     created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uk_tiki_product_id (tiki_product_id)
 );
+
+-- Bật lại foreign key checks
+SET FOREIGN_KEY_CHECKS = 1;
 
 SELECT 'All Dimension Tables created successfully!' as Status;
 SHOW TABLES LIKE 'DIM_%';
