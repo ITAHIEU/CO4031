@@ -1,0 +1,90 @@
+name: Deploy Data Warehouse
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: ProductDW
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy matplotlib seaborn scikit-learn
+
+    - name: Wait for MySQL
+      run: |
+        while ! mysqladmin ping -h"127.0.0.1" -P3306 -uroot -ppassword --silent; do
+          sleep 1
+        done
+
+    - name: Set MySQL local_infile
+      run: |
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword -e "SET GLOBAL local_infile = 1;"
+
+    - name: Deploy Database Schema
+      run: |
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword < 00_mysql_create_database.sql
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword < 01_mysql_create_dimension_tables.sql
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword < 02_mysql_create_fact_tables.sql
+
+    - name: Import Data
+      run: |
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword --local-infile=1 < import_real_csv_data.sql || true
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword < 04_mysql_populate_dimensions.sql
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword < 05_mysql_populate_fact_table.sql
+
+    - name: Run Data Preprocessing
+      run: |
+        python data_preprocessing.py || true
+
+    - name: Run OLAP Analysis
+      run: |
+        python part3_olap_datamining.py || true
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: analysis-results
+        path: |
+          data/clean/*.png
+          data/clean/*.csv
+        if-no-files-found: warn
+
+    - name: Database Status Check
+      run: |
+        echo "=== DATABASE STATUS ==="
+        mysql -h 127.0.0.1 -P 3306 -u root -ppassword -e "
+        USE ProductDW;
+        SELECT 'DIM_Brand' as Table_Name, COUNT(*) as Records FROM DIM_Brand
+        UNION ALL SELECT 'DIM_Seller', COUNT(*) FROM DIM_Seller
+        UNION ALL SELECT 'DIM_Category', COUNT(*) FROM DIM_Category
+        UNION ALL SELECT 'DIM_Product', COUNT(*) FROM DIM_Product
+        UNION ALL SELECT 'FACT_Product_Sales', COUNT(*) FROM FACT_Product_Sales;"
