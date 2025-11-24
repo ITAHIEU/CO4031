@@ -83,16 +83,13 @@ jobs:
           index.html
         if-no-files-found: warn
 
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v3
-      if: github.ref == 'refs/heads/main'
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./
-        include_assets: |
-          index.html
-          data/clean/*.png
-          data/clean/*.csv
+    - name: Commit HTML Report to main branch
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add index.html data/clean/ || true
+        git commit -m "Auto-generated HTML report and analysis results" || true
+        git push || true
 
     - name: Database Status Check
       run: |
