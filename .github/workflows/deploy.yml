@@ -13,11 +13,8 @@ permissions:
   id-token: write
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     
     services:
       mysql:
@@ -84,11 +81,19 @@ jobs:
     - name: Create analysis from real database data
       run: |
         python create_real_data_analysis.py
-
-    - name: Deploy to GitHub Pages
-      uses: peaceiris/actions-gh-pages@v4
-      if: github.ref == 'refs/heads/main'
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
       with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./
-        force_orphan: true
+        path: .
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v4
