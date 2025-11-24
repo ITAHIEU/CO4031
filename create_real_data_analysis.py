@@ -37,21 +37,21 @@ def main():
     # Query real data from fact table with joins
     query = """
     SELECT 
-        f.ProductID,
-        p.ProductName,
-        b.BrandName,
-        c.CategoryName,
-        s.SellerName,
-        f.Price,
-        f.Rating,
-        f.ReviewCount,
-        f.DiscountPercent
+        f.product_id,
+        p.product_name,
+        b.brand_name,
+        c.category_name,
+        s.seller_name,
+        f.current_price as price,
+        f.rating_average as rating,
+        f.review_count,
+        COALESCE((f.original_price - f.current_price) / f.original_price * 100, 0) as discount_percent
     FROM FACT_Product_Sales f
-    JOIN DIM_Product p ON f.ProductID = p.ProductID
-    JOIN DIM_Brand b ON p.BrandID = b.BrandID
-    JOIN DIM_Category c ON p.CategoryID = c.CategoryID
-    JOIN DIM_Seller s ON p.SellerID = s.SellerID
-    WHERE f.Price > 0 AND f.Rating > 0
+    JOIN DIM_Product p ON f.product_id = p.product_id
+    JOIN DIM_Brand b ON f.brand_id = b.brand_id
+    JOIN DIM_Category c ON f.category_id = c.category_id
+    JOIN DIM_Seller s ON f.seller_id = s.seller_id
+    WHERE f.current_price > 0 AND f.rating_average > 0
     LIMIT 5000;
     """
     
@@ -68,26 +68,26 @@ def main():
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
     
     # Revenue by Brand (top 15)
-    brand_revenue = df.groupby('BrandName')['Price'].sum().nlargest(15)
+    brand_revenue = df.groupby('brand_name')['price'].sum().nlargest(15)
     ax1.barh(brand_revenue.index, brand_revenue.values / 1e6, color='skyblue')
     ax1.set_title('💰 Top 15 Brands by Revenue (Million VND)', fontsize=14, fontweight='bold')
     ax1.set_xlabel('Revenue (Million VND)')
     
     # Price vs Rating scatter plot
-    ax2.scatter(df['Price']/1000, df['Rating'], alpha=0.6, color='coral', s=30)
+    ax2.scatter(df['price']/1000, df['rating'], alpha=0.6, color='coral', s=30)
     ax2.set_title('📊 Price vs Rating Analysis', fontsize=14, fontweight='bold')
     ax2.set_xlabel('Price (Thousand VND)')
     ax2.set_ylabel('Rating')
     
     # Category Distribution
-    category_counts = df['CategoryName'].value_counts().head(8)
+    category_counts = df['category_name'].value_counts().head(8)
     colors = plt.cm.Set3(np.linspace(0, 1, len(category_counts)))
     ax3.pie(category_counts.values, labels=category_counts.index, autopct='%1.1f%%', 
             startangle=90, colors=colors)
     ax3.set_title('📦 Top Categories Distribution', fontsize=14, fontweight='bold')
     
     # Top Sellers by Revenue
-    seller_revenue = df.groupby('SellerName')['Price'].sum().nlargest(10)
+    seller_revenue = df.groupby('seller_name')['price'].sum().nlargest(10)
     ax4.bar(range(len(seller_revenue)), seller_revenue.values / 1e6, color='lightgreen')
     ax4.set_title('🚚 Top 10 Sellers by Revenue', fontsize=14, fontweight='bold')
     ax4.set_xlabel('Seller Rank')
@@ -103,7 +103,7 @@ def main():
     # K-means Clustering Analysis on real data
     print("🤖 Running K-means clustering analysis...")
     if len(df) > 10:  # Only cluster if we have enough data
-        features = ['Price', 'Rating', 'ReviewCount', 'DiscountPercent']
+        features = ['price', 'rating', 'review_count', 'discount_percent']
         X = df[features].fillna(0)  # Fill NaN values
         
         # Remove outliers (optional)
@@ -135,7 +135,7 @@ def main():
             fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
             
             # Cluster scatter plot
-            scatter = ax1.scatter(cluster_df['Price']/1000, cluster_df['Rating'], 
+            scatter = ax1.scatter(cluster_df['price']/1000, cluster_df['rating'], 
                                 c=cluster_df['cluster'], cmap='viridis', alpha=0.7, s=40)
             ax1.set_title('💡 K-means Clustering: Price vs Rating', fontsize=14, fontweight='bold')
             ax1.set_xlabel('Price (Thousand VND)')
@@ -150,14 +150,14 @@ def main():
             ax2.set_ylabel('Number of Products')
             
             # Average price by cluster
-            cluster_price = cluster_df.groupby('cluster')['Price'].mean()
+            cluster_price = cluster_df.groupby('cluster')['price'].mean()
             ax3.bar(cluster_price.index, cluster_price.values / 1000, color='lightcoral', alpha=0.8)
             ax3.set_title('💰 Average Price by Cluster', fontsize=14, fontweight='bold')
             ax3.set_xlabel('Cluster ID')
             ax3.set_ylabel('Average Price (Thousand VND)')
             
             # Average rating by cluster
-            cluster_rating = cluster_df.groupby('cluster')['Rating'].mean()
+            cluster_rating = cluster_df.groupby('cluster')['rating'].mean()
             ax4.bar(cluster_rating.index, cluster_rating.values, color='lightblue', alpha=0.8)
             ax4.set_title('⭐ Average Rating by Cluster', fontsize=14, fontweight='bold')
             ax4.set_xlabel('Cluster ID')
