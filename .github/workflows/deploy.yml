@@ -1,0 +1,86 @@
+name: Deploy Data Warehouse to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root_password
+          MYSQL_DATABASE: ProductDW
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy matplotlib seaborn scikit-learn mysql-connector-python
+
+    - name: Wait for MySQL to be ready
+      run: |
+        for i in {1..30}; do
+          if mysqladmin ping -h 127.0.0.1 -P 3306 -u root -proot_password --silent; then
+            echo "MySQL is ready"
+            break
+          fi
+          echo "Waiting for MySQL... ($i/30)"
+          sleep 2
+        done
+
+    - name: Set up MySQL database
+      run: |
+        mysql -h 127.0.0.1 -P 3306 -u root -proot_password < 00_mysql_create_database.sql
+        mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 01_mysql_create_dimension_tables.sql
+        mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 02_mysql_create_fact_tables.sql
+
+    - name: Import CSV data
+      run: |
+        mysql -h 127.0.0.1 -P 3306 -u root -proot_password --local-infile=1 ProductDW < 03_mysql_import_csv_data.sql
+
+    - name: Populate data warehouse
+      run: |
+        mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 04_mysql_populate_dimensions.sql
+        mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 05_mysql_populate_fact_table.sql
+
+    - name: Run data preprocessing
+      run: |
+        python data_preprocessing.py
+
+    - name: Run OLAP and Data Mining analysis
+      run: |
+        python part3_olap_datamining.py
+
+    - name: Create analysis from real database data
+      run: |
+        python create_real_data_analysis.py
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./
+        force_orphan: true
