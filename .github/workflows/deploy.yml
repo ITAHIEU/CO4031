@@ -63,9 +63,86 @@ jobs:
         mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 01_mysql_create_dimension_tables.sql
         mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 02_mysql_create_fact_tables.sql
 
-    - name: Import CSV data
+    - name: Import CSV data with Python
       run: |
-        mysql -h 127.0.0.1 -P 3306 -u root -proot_password --local-infile=1 ProductDW < 03_mysql_import_csv_data.sql
+        python -c "
+        import pandas as pd
+        import mysql.connector
+        
+        print('📂 Reading CSV file...')
+        df = pd.read_csv('vietnamese_tiki_products_backpacks_suitcases.csv')
+        print(f'✅ Loaded {len(df)} records from CSV')
+        
+        # Connect to MySQL
+        conn = mysql.connector.connect(
+            host='127.0.0.1',
+            port=3306,
+            user='root',
+            password='root_password',
+            database='ProductDW'
+        )
+        
+        cursor = conn.cursor()
+        print('💾 Importing to MySQL database...')
+        
+        # Create staging table if not exists
+        create_table_sql = '''
+        CREATE TABLE IF NOT EXISTS STAGING_Products (
+            row_index INT,
+            id BIGINT,
+            name TEXT,
+            description TEXT,
+            original_price DECIMAL(15,2),
+            price DECIMAL(15,2),
+            fulfillment_type VARCHAR(50),
+            brand VARCHAR(255),
+            review_count INT,
+            rating_average DECIMAL(3,2),
+            favourite_count INT,
+            pay_later TINYINT(1),
+            current_seller TEXT,
+            date_created INT,
+            number_of_images INT,
+            vnd_cashback INT,
+            has_video TINYINT(1),
+            category TEXT,
+            quantity_sold INT
+        )
+        '''
+        cursor.execute(create_table_sql)
+        
+        # Truncate table first
+        cursor.execute('TRUNCATE TABLE STAGING_Products')
+        
+        # Insert data
+        insert_query = '''
+        INSERT INTO STAGING_Products 
+        (row_index, id, name, description, original_price, price, fulfillment_type, 
+         brand, review_count, rating_average, favourite_count, pay_later, 
+         current_seller, date_created, number_of_images, vnd_cashback, has_video, 
+         category, quantity_sold)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        '''
+        
+        data_to_insert = []
+        for index, row in df.iterrows():
+            data_to_insert.append(tuple(row))
+            if len(data_to_insert) >= 500:
+                cursor.executemany(insert_query, data_to_insert)
+                data_to_insert = []
+        
+        if data_to_insert:
+            cursor.executemany(insert_query, data_to_insert)
+        
+        conn.commit()
+        
+        # Verify import
+        cursor.execute('SELECT COUNT(*) FROM STAGING_Products')
+        count = cursor.fetchone()[0]
+        print(f'✅ Imported {count} records successfully!')
+        
+        conn.close()
+        "
 
     - name: Populate data warehouse
       run: |

@@ -6,25 +6,28 @@
 
 USE ProductDW;
 
--- Staging Table
+-- Staging Table (matching CSV structure)
 DROP TABLE IF EXISTS STAGING_Products;
 CREATE TABLE STAGING_Products (
+    row_index INT,
     id BIGINT,
     name TEXT,
-    short_description TEXT,
     description TEXT,
-    brand_name VARCHAR(255),
-    seller_name VARCHAR(255),
     original_price DECIMAL(15,2),
-    current_price DECIMAL(15,2),
-    quantity_sold INT DEFAULT 0,
+    price DECIMAL(15,2),
+    fulfillment_type VARCHAR(50),
+    brand VARCHAR(255),
     review_count INT DEFAULT 0,
     rating_average DECIMAL(3,2) DEFAULT 0.00,
     favourite_count INT DEFAULT 0,
-    all_time_quantity_sold INT DEFAULT 0,
-    category_names TEXT,  
-    thumbnail_url TEXT,
-    product_url TEXT
+    pay_later BOOLEAN DEFAULT FALSE,
+    current_seller TEXT,
+    date_created INT,
+    number_of_images INT DEFAULT 0,
+    vnd_cashback INT DEFAULT 0,
+    has_video BOOLEAN DEFAULT FALSE,
+    category TEXT,
+    quantity_sold INT DEFAULT 0
 );
 
 -- Main Fact Table

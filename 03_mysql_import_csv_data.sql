@@ -9,16 +9,20 @@ USE ProductDW;
 -- Clear staging table
 TRUNCATE TABLE STAGING_Products;
 
--- Import CSV data - Use existing import method
--- Note: CSV data was already imported in previous steps
--- This step verifies the import
+-- Import CSV data using LOAD DATA LOCAL INFILE with correct column mapping
+LOAD DATA LOCAL INFILE 'vietnamese_tiki_products_backpacks_suitcases.csv'
+INTO TABLE STAGING_Products
+FIELDS TERMINATED BY ','
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS
+(row_index, id, name, description, original_price, price, fulfillment_type, brand, 
+ review_count, rating_average, favourite_count, pay_later, current_seller, 
+ date_created, number_of_images, vnd_cashback, has_video, category, quantity_sold);
 
--- Check if data already exists
+-- Check import results
 SET @record_count = (SELECT COUNT(*) FROM STAGING_Products);
-SELECT CASE 
-    WHEN @record_count > 0 THEN 'Data already imported successfully!'
-    ELSE 'No data found. Please import CSV manually via MySQL Workbench.'
-END as Import_Status;
+SELECT CONCAT('Successfully imported ', @record_count, ' records!') as Import_Status;
 
 -- Check import results
 SELECT 'CSV Import completed!' as Status;

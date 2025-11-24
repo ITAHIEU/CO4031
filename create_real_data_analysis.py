@@ -34,24 +34,21 @@ def main():
         database='ProductDW'
     )
     
-    # Query real data from fact table with joins
+    # Query real data from staging table (has real Vietnamese Tiki data)
     query = """
     SELECT 
-        f.product_id,
-        p.product_name,
-        b.brand_name,
-        c.category_name,
-        s.seller_name,
-        f.current_price as price,
-        f.rating_average as rating,
-        f.review_count,
-        COALESCE((f.original_price - f.current_price) / f.original_price * 100, 0) as discount_percent
-    FROM FACT_Product_Sales f
-    JOIN DIM_Product p ON f.product_id = p.product_id
-    JOIN DIM_Brand b ON f.brand_id = b.brand_id
-    JOIN DIM_Category c ON f.category_id = c.category_id
-    JOIN DIM_Seller s ON f.seller_id = s.seller_id
-    WHERE f.current_price > 0 AND f.rating_average > 0
+        id as product_id,
+        name as product_name,
+        brand as brand_name,
+        category as category_name,
+        current_seller as seller_name,
+        price as price,
+        rating_average as rating,
+        review_count,
+        quantity_sold,
+        COALESCE((original_price - price) / original_price * 100, 0) as discount_percent
+    FROM STAGING_Products
+    WHERE price > 0 AND rating_average >= 0
     LIMIT 5000;
     """
     

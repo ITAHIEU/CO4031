@@ -9,20 +9,9 @@ USE ProductDW;
 -- Check if staging data exists first
 SELECT COUNT(*) as Staging_Records FROM STAGING_Products;
 
--- If no staging data, import from previous ETL
-INSERT INTO STAGING_Products (id, name, short_description, description, brand_name, seller_name, 
-    original_price, current_price, quantity_sold, review_count, rating_average, 
-    favourite_count, all_time_quantity_sold, category_names, thumbnail_url, product_url)
-SELECT DISTINCT * FROM (
-    SELECT 1 as id, 'Sample Product' as name, 'Sample Description' as short_description, 
-           'Detailed Description' as description, 'Sample Brand' as brand_name, 
-           'Sample Seller' as seller_name, 100.00 as original_price, 90.00 as current_price,
-           10 as quantity_sold, 5 as review_count, 4.5 as rating_average,
-           2 as favourite_count, 15 as all_time_quantity_sold, 
-           'Electronics > Accessories' as category_names,
-           'http://sample.jpg' as thumbnail_url, 'http://sample.com' as product_url
-    WHERE NOT EXISTS (SELECT 1 FROM STAGING_Products LIMIT 1)
-) as sample_data;
+-- Skip sample data insertion - rely on CSV import only
+-- Sample data only if CSV import completely failed
+SELECT 'Using data from CSV import' as Status;
 
 -- 1. Populate DIM_Time (current date)
 INSERT IGNORE INTO DIM_Time (date_key, year, quarter, month, day, week_of_year, day_of_week, month_name, quarter_name, is_weekend)
