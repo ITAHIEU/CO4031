@@ -81,6 +81,23 @@ jobs:
     - name: Create analysis from real database data
       run: |
         python create_real_data_analysis.py
+        
+    - name: Verify generated files
+      run: |
+        echo "Checking generated files..."
+        ls -la data/clean/ || echo "data/clean directory not found"
+        if [ -f "data/clean/olap_analysis.png" ]; then
+          echo "✅ OLAP analysis chart created successfully"
+        else
+          echo "❌ OLAP analysis chart not found"
+        fi
+        if [ -f "data/clean/clustering_analysis.png" ]; then
+          echo "✅ Clustering analysis chart created successfully"  
+        else
+          echo "❌ Clustering analysis chart not found"
+        fi
+        echo "Current directory contents:"
+        find . -name "*.png" -type f | head -10
       
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
