@@ -61,6 +61,10 @@ jobs:
         mysql -h 127.0.0.1 -P 3306 -u root -ppassword < 04_mysql_populate_dimensions.sql
         mysql -h 127.0.0.1 -P 3306 -u root -ppassword < 05_mysql_populate_fact_table.sql
 
+    - name: Create Sample Analysis
+      run: |
+        python create_sample_analysis.py
+
     - name: Run Data Preprocessing
       run: |
         python data_preprocessing.py || true
