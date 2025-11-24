@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -98,6 +98,18 @@ jobs:
         fi
         echo "Current directory contents:"
         find . -name "*.png" -type f | head -10
+        
+    - name: Commit generated charts
+      run: |
+        git config --global user.name 'GitHub Actions'
+        git config --global user.email 'actions@github.com'
+        git add data/clean/*.png data/clean/*.csv
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Auto-generate analysis charts and data files [skip ci]"
+          git push
+        fi
       
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
