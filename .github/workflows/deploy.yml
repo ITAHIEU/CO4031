@@ -13,9 +13,11 @@ permissions:
   id-token: write
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     services:
       mysql:
         image: mysql:8.0
@@ -101,28 +103,32 @@ jobs:
         
     - name: Commit generated charts
       run: |
-        git config --global user.name 'GitHub Actions'
-        git config --global user.email 'actions@github.com'
-        git add data/clean/*.png data/clean/*.csv
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
+        git config --global user.name 'GitHub Actions Bot'
+        git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        
+        # Check if files exist before adding
+        if [ -f "data/clean/olap_analysis.png" ] && [ -f "data/clean/clustering_analysis.png" ]; then
+          git add data/clean/*.png data/clean/*.csv
+          
+          if git diff --staged --quiet; then
+            echo "[INFO] No changes to commit"
+          else
+            git commit -m "🤖 Auto-generate analysis charts from real data [skip ci]"
+            git push origin main
+            echo "[SUCCESS] Charts committed and pushed"
+          fi
         else
-          git commit -m "Auto-generate analysis charts and data files [skip ci]"
-          git push
+          echo "[WARNING] Chart files not found, skipping commit"
         fi
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
       
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
         path: .
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
+        
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@v4
