@@ -82,11 +82,10 @@ def verify_etl_results(cursor):
     print("=" * 40)
     
     try:
-        # Đếm records trong các bảng
+        # Đếm records trong các bảng - theo schema mới
         tables = [
-            'DIM_Brand', 'DIM_Seller', 'DIM_Category', 
-            'DIM_Product', 'DIM_Fulfillment_Type', 'DIM_Time',
-            'FACT_Product_Sales', 'STAGING_Products'
+            'DIM_Brand', 'DIM_Seller', 'DIM_Fulfillment_Type', 'DIM_Time',
+            'Fact_product_stats', 'STAGING_Products'
         ]
         
         results = {}
@@ -106,11 +105,11 @@ def verify_etl_results(cursor):
         print("📈 THỐNG KÊ CHI TIẾT:")
         print("-" * 30)
         
-        # Top brands
+
         cursor.execute("""
             SELECT b.brand_name, COUNT(*) as count
             FROM DIM_Brand b
-            INNER JOIN FACT_Product_Sales f ON b.brand_id = f.brand_id
+            INNER JOIN Fact_product_stats f ON b.brand_id = f.brand_id
             GROUP BY b.brand_id, b.brand_name
             ORDER BY count DESC
             LIMIT 5
@@ -123,32 +122,32 @@ def verify_etl_results(cursor):
         
         print()
         
-        # Top categories  
+        # Top sellers  
         cursor.execute("""
-            SELECT c.category_name, COUNT(*) as count
-            FROM DIM_Category c
-            INNER JOIN FACT_Product_Sales f ON c.category_id = f.category_id
-            GROUP BY c.category_id, c.category_name  
+            SELECT s.seller_name, COUNT(*) as count
+            FROM DIM_Seller s
+            INNER JOIN Fact_product_stats f ON s.seller_id = f.seller_id
+            GROUP BY s.seller_id, s.seller_name  
             ORDER BY count DESC
             LIMIT 5
         """)
         
-        categories = cursor.fetchall()
-        print("📂 Top 5 danh mục:")
-        for i, (category, count) in enumerate(categories, 1):
-            print(f"   {i}. {category}: {count:,} sản phẩm")
+        sellers = cursor.fetchall()
+        print("🏪 Top 5 sellers:")
+        for i, (seller, count) in enumerate(sellers, 1):
+            print(f"   {i}. {seller}: {count:,} sản phẩm")
         
         print()
         
-        # Price statistics
+        # Price statistics - theo schema mới
         cursor.execute("""
             SELECT 
-                MIN(current_price) as min_price,
-                MAX(current_price) as max_price,
-                AVG(current_price) as avg_price,
+                MIN(price) as min_price,
+                MAX(price) as max_price,
+                AVG(price) as avg_price,
                 COUNT(*) as total_products
-            FROM FACT_Product_Sales 
-            WHERE current_price > 0
+            FROM Fact_product_stats 
+            WHERE price > 0
         """)
         
         price_stats = cursor.fetchone()
@@ -164,7 +163,7 @@ def verify_etl_results(cursor):
         # Check data integrity
         cursor.execute("""
             SELECT 
-                (SELECT COUNT(*) FROM FACT_Product_Sales) as fact_records,
+                (SELECT COUNT(*) FROM Fact_product_stats) as fact_records,
                 (SELECT COUNT(*) FROM STAGING_Products) as staging_records
         """)
         
