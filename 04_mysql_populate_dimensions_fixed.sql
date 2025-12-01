@@ -27,18 +27,6 @@ FROM STAGING_Products;
 
 SELECT CONCAT('DIM_Seller populated: ', COUNT(*), ' records') as Status FROM DIM_Seller;
 
--- Populate DIM_Category
-INSERT IGNORE INTO DIM_Category (category_name, category_level)  
-SELECT DISTINCT
-    CASE 
-        WHEN category IS NULL OR TRIM(category) = '' THEN 'Uncategorized'
-        ELSE TRIM(category)
-    END as category_name,
-    1 as category_level
-FROM STAGING_Products;
-
-SELECT CONCAT('DIM_Category populated: ', COUNT(*), ' records') as Status FROM DIM_Category;
-
 -- Populate DIM_Fulfillment_Type
 INSERT IGNORE INTO DIM_Fulfillment_Type (fulfillment_type, description)
 VALUES 
@@ -68,25 +56,3 @@ VALUES (
 );
 
 SELECT CONCAT('DIM_Time populated: ', COUNT(*), ' records') as Status FROM DIM_Time;
-
--- Populate DIM_Product
-INSERT IGNORE INTO DIM_Product (tiki_product_id, product_name, short_description, description, product_url)
-SELECT DISTINCT
-    sp.id as tiki_product_id,
-    CASE 
-        WHEN sp.name IS NULL OR TRIM(sp.name) = '' THEN 'Unnamed Product'
-        ELSE LEFT(TRIM(sp.name), 1000)
-    END as product_name,
-    CASE 
-        WHEN sp.name IS NULL OR TRIM(sp.name) = '' THEN 'No description'
-        ELSE LEFT(TRIM(sp.name), 500)
-    END as short_description,
-    CASE 
-        WHEN sp.description IS NULL OR TRIM(sp.description) = '' THEN 'No detailed description'
-        ELSE LEFT(TRIM(sp.description), 2000)
-    END as description,
-    CONCAT('https://tiki.vn/product/', sp.id) as product_url
-FROM STAGING_Products sp
-WHERE sp.id IS NOT NULL;
-
-SELECT CONCAT('DIM_Product populated: ', COUNT(*), ' records') as Status FROM DIM_Product;

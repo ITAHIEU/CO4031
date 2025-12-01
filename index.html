@@ -106,14 +106,12 @@
 
                 <h4>📊 Data Warehouse Schema:</h4>
                 <ul>
-                    <li><strong>Star Schema Design:</strong> 1 Fact Table + 6 Dimension Tables</li>
-                    <li><strong>DIM_Brand:</strong> 249 unique brands từ OEM đến premium brands</li>
-                    <li><strong>DIM_Seller:</strong> 1,059 sellers trên Tiki marketplace</li>
-                    <li><strong>DIM_Category:</strong> 23 product categories (Balo, Vali, Túi xách...)</li>
-                    <li><strong>DIM_Product:</strong> 5,359 unique products với full metadata</li>
-                    <li><strong>DIM_Fulfillment_Type:</strong> 4 fulfillment methods (dropship, tiki_delivery...)</li>
-                    <li><strong>DIM_Time:</strong> Time dimension cho temporal analysis</li>
-                    <li><strong>FACT_Product_Sales:</strong> 5,361 fact records với all business metrics</li>
+                    <li><strong>Star Schema Design:</strong> 1 Fact Table + 4 Dimension Tables</li>
+                    <li><strong>Dim_brand:</strong> Unique brands từ OEM đến premium brands</li>
+                    <li><strong>Dim_seller:</strong> Sellers trên Tiki marketplace</li>
+                    <li><strong>Dim_Fulfillment_Type:</strong> 4 fulfillment methods (dropship, tiki_delivery...)</li>
+                    <li><strong>Dim_Time:</strong> Time dimension cho temporal analysis</li>
+                    <li><strong>Fact_product_stats:</strong> Fact records với business metrics (price, quantity_sold, rating...)</li>
                 </ul>
 
                 <h4>🎯 ETL Quality Metrics:</h4>
@@ -127,7 +125,7 @@
                         <div>Data Quality Score</div>
                     </div>
                     <div class="stat-card">
-                        <div class="stat-number">7</div>
+                        <div class="stat-number">5</div>
                         <div>Tables Created</div>
                     </div>
                     <div class="stat-card">
@@ -144,8 +142,8 @@
                     <div>Total Products</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">23</div>
-                    <div>Product Categories</div>
+                    <div class="stat-number">4</div>
+                    <div>Dimension Tables</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number">249</div>
