@@ -31,9 +31,9 @@ def run_etl_process():
             cursor = connection.cursor(buffered=True)
             
             # Đọc và thực thi file ETL SQL
-            print("📖 Đọc file corrected_etl_process.sql...")
+            print("📖 Đọc file 04_mysql_populate_dimensions_fixed.sql...")
             
-            with open('corrected_etl_process.sql', 'r', encoding='utf-8') as file:
+            with open('04_mysql_populate_dimensions_fixed.sql', 'r', encoding='utf-8') as file:
                 sql_commands = file.read()
             
             # Tách các câu lệnh SQL
