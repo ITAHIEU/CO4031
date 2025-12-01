@@ -1,7 +1,3 @@
--- ========================================
--- IMPORT_REAL_CSV_DATA.sql
--- ========================================
--- Import dữ liệu thật từ CSV file
 
 USE ProductDW;
 
@@ -26,12 +22,12 @@ FIELDS TERMINATED BY ','
 ENCLOSED BY '"'
 LINES TERMINATED BY '\r\n'
 IGNORE 1 ROWS
-(id, name, short_description, description, brand_name, seller_name, 
- original_price, current_price, quantity_sold, review_count, rating_average, 
- favourite_count, all_time_quantity_sold, category_names, thumbnail_url, product_url);
+(row_index, id, name, description, original_price, price, fulfillment_type, brand, 
+ review_count, rating_average, favourite_count, pay_later, current_seller, 
+ date_created, number_of_images, vnd_cashback, has_video, category, quantity_sold);
 
 -- Kiểm tra import
 SELECT 'CSV Import completed!' as Status;
 SELECT COUNT(*) as Total_Records_Imported FROM STAGING_Products;
 SELECT 'Sample imported data:' as Info;
-SELECT id, name, brand_name, seller_name, current_price FROM STAGING_Products LIMIT 5;
+SELECT id, name, brand, current_seller, price FROM STAGING_Products LIMIT 5;

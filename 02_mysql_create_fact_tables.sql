@@ -6,7 +6,7 @@
 
 USE ProductDW;
 
--- Staging Table (matching CSV structure)
+-- Staging Table
 DROP TABLE IF EXISTS STAGING_Products;
 CREATE TABLE STAGING_Products (
     row_index INT,
