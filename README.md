@@ -149,7 +149,7 @@ SHOW TABLES;
 
 #### 3.1. Làm Sạch Dữ Liệu
 ```bash
-python part1_data_preprocessing.py
+python data_preprocessing.py
 ```
 
 **Expected Output:**
@@ -329,7 +329,7 @@ mysql -u root -p -e "DROP DATABASE ProductDW; CREATE DATABASE ProductDW;"
 ```
 CO4031/
 ├── 📄 vietnamese_tiki_products_backpacks_suitcases.csv    # Raw data (5,361 products)
-├── 🐍 part1_data_preprocessing.py                        # Data cleaning
+├── 🐍 data_preprocessing.py                        # Data cleaning
 ├── 🐍 part3_olap_datamining.py                          # Main analytics
 ├── 🐍 run_etl_process.py                                # ETL automation
 ├── 🗃️ 01_mysql_create_dimension_tables.sql              # Dimension schema
