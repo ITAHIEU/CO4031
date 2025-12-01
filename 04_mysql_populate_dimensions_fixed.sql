@@ -36,23 +36,3 @@ VALUES
     ('unknown', 'Unknown fulfillment');
 
 SELECT CONCAT('DIM_Fulfillment_Type populated: ', COUNT(*), ' records') as Status FROM DIM_Fulfillment_Type;
-
--- Populate DIM_Time
-INSERT IGNORE INTO DIM_Time (
-    date_key, year, quarter, month, day, week_of_year, day_of_week,
-    month_name, quarter_name, is_weekend
-)
-VALUES (
-    CURDATE(),
-    YEAR(CURDATE()),
-    QUARTER(CURDATE()),
-    MONTH(CURDATE()),
-    DAY(CURDATE()),
-    WEEK(CURDATE()),
-    DAYOFWEEK(CURDATE()),
-    MONTHNAME(CURDATE()),
-    CONCAT('Q', QUARTER(CURDATE())),
-    CASE WHEN DAYOFWEEK(CURDATE()) IN (1, 7) THEN TRUE ELSE FALSE END
-);
-
-SELECT CONCAT('DIM_Time populated: ', COUNT(*), ' records') as Status FROM DIM_Time;

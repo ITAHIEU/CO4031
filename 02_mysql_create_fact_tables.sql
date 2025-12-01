@@ -38,7 +38,6 @@ CREATE TABLE Fact_product_stats (
     brand_id INT NOT NULL, 
     seller_id INT NOT NULL,
     fulfillment_id INT NOT NULL,
-    time_id INT NOT NULL,
     price DECIMAL(15,2) NOT NULL DEFAULT 0.00,
     quantity_sold INT DEFAULT 0,
     rating_average DECIMAL(3,2) DEFAULT 0.00,
@@ -49,14 +48,12 @@ CREATE TABLE Fact_product_stats (
     FOREIGN KEY (brand_id) REFERENCES DIM_Brand(brand_id),
     FOREIGN KEY (seller_id) REFERENCES DIM_Seller(seller_id),
     FOREIGN KEY (fulfillment_id) REFERENCES DIM_Fulfillment_Type(fulfillment_id),
-    FOREIGN KEY (time_id) REFERENCES DIM_Time(time_id),
     
     -- Indexes for better performance
     INDEX idx_product_id (product_id),
     INDEX idx_brand_id (brand_id),
     INDEX idx_seller_id (seller_id),
-    INDEX idx_fulfillment_id (fulfillment_id),
-    INDEX idx_time_id (time_id)
+    INDEX idx_fulfillment_id (fulfillment_id)
 );
 
 SELECT 'Fact Table and Staging Table created successfully!' as Status;

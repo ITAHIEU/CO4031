@@ -37,24 +37,6 @@ CREATE TABLE DIM_Fulfillment_Type (
     UNIQUE KEY uk_fulfillment_type (fulfillment_type)
 );
 
--- 4. DIM_Time
-DROP TABLE IF EXISTS DIM_Time;
-CREATE TABLE DIM_Time (
-    time_id INT AUTO_INCREMENT PRIMARY KEY,
-    date_key DATE NOT NULL,
-    year INT,
-    quarter INT,
-    month INT,
-    day INT,
-    week_of_year INT,
-    day_of_week INT,
-    month_name VARCHAR(20),
-    quarter_name VARCHAR(10),
-    is_weekend BOOLEAN DEFAULT FALSE,
-    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uk_date_key (date_key)
-);
-
 -- Bật lại foreign key checks
 SET FOREIGN_KEY_CHECKS = 1;
 

@@ -5,7 +5,7 @@
 Dự án xây dựng hệ thống Data Warehouse hoàn chỉnh để phân tích dữ liệu sản phẩm balo/vali từ Tiki Vietnam, bao gồm OLAP Analysis, Data Mining, Machine Learning và Real-time Dashboard.
 
 **Dữ liệu:** 5,361 sản phẩm với 19 thuộc tính  
-**Architecture:** Star Schema với 4 Dimension Tables + 1 Fact Table  
+**Architecture:** Star Schema với 3 Dimension Tables + 1 Fact Table  
 **Technologies:** MySQL, Python, Scikit-learn, GitHub Actions, GitHub Pages  
 **Live Demo:** [https://itahieu.github.io/CO4031/](https://itahieu.github.io/CO4031/)
 
@@ -13,46 +13,39 @@ Dự án xây dựng hệ thống Data Warehouse hoàn chỉnh để phân tích
 
 ## 🏗️ Kiến Trúc Data Warehouse
 
-### Star Schema Design 
+### Star Schema Design (Theo Diagram Thực Tế)
 ```
-    DIM_Brand ────┐
+    Dim_brand ────┐
                   │
-    DIM_Seller ───┼──► Fact_product_stats
+    Dim_seller ───┼──► Fact_product_stats  
                   │
-    DIM_Fulfillment_Type ──┘
-                  │
-    DIM_Time ─────┘
+    Dim_Fulfillment_Type ──┘
 ```
 
 ### Cấu Trúc Bảng
 
-#### **Dimension Tables (4 bảng):**
+#### **Dimension Tables (3 bảng):**
 
-1. **DIM_Brand**
-   - `brand_id` (PK)
+1. **Dim_brand**
+   - `UniqueID` (PK)
+   - `brand_id` (FK)
    - `brand_name` (VARCHAR(255))
-   - `created_date` (TIMESTAMP)
 
-2. **DIM_Seller**
-   - `seller_id` (PK)
-   - `seller_name` (VARCHAR(500))
-   - `created_date` (TIMESTAMP)
+2. **Dim_seller**
+   - `UniqueID` (PK)
+   - `seller_id` (FK)
+   - `seller_name` (VARCHAR(255))
 
-3. **DIM_Fulfillment_Type**
-   - `fulfillment_id` (PK)
-   - `fulfillment_type` (VARCHAR(50))
-   - `created_date` (TIMESTAMP)
-
-4. **DIM_Time**
-   - `time_id` (PK)
-   - `date` (DATE)
-   - `day`, `month`, `quarter`, `year` (INT)
+3. **Dim_Fulfillment_Type**
+   - `UniqueID` (PK)
+   - `fulfillment_id` (FK)
+   - `fulfillment_type` (VARCHAR(100))
 
 #### **Fact Table (1 bảng):**
 
-5. **Fact_product_stats**
+4. **Fact_product_stats**
    - `UniqueID` (PK)
-   - `product_id`, `brand_id`, `seller_id`, `fulfillment_id`, `time_id` (FKs)
+   - `product_id`, `brand_id`, `seller_id`, `fulfillment_id` (FKs)
    - `price`, `quantity_sold`, `rating_average`, `review_count` (Measures)
 
 #### **Staging Table:**
@@ -140,7 +133,7 @@ mysql -u root -p ProductDW < 02_mysql_create_fact_tables.sql
 ```sql
 mysql -u root -p ProductDW
 SHOW TABLES;
--- Expected: 6 tables (4 dim + 1 fact + 1 staging)
+-- Expected: 5 tables (3 dim + 1 fact + 1 staging)
 ```
 
 ---
@@ -199,7 +192,6 @@ python run_etl_process.py
    DIM_Brand           : 249 records
    DIM_Seller          : 1,059 records
    DIM_Fulfillment_Type: 4 records
-   DIM_Time            : 1 records
    Fact_product_stats  : 5,361 records
 
 🏷️ Top 5 Brands:
