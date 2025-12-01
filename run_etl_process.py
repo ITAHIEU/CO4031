@@ -10,12 +10,15 @@ import time
 from datetime import datetime
 
 def run_etl_process():
-    """Chạy quá trình ETL để populate dimension tables"""
-    print("🚀 BẮT ĐẦU QUÁ TRÌNH ETL")
+    """Chạy quá trình ETL hoàn chỉnh từ CSV đến Data Warehouse"""
+    print("🚀 BẮT ĐẦU QUÁ TRÌNH ETL HOÀN CHỈNH")
     print(f"⏰ Thời gian bắt đầu: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
     
     try:
+        # Import pandas để đọc CSV
+        import pandas as pd
+        
         # Kết nối MySQL
         connection = mysql.connector.connect(
             host='localhost',
@@ -27,43 +30,144 @@ def run_etl_process():
         
         if connection.is_connected():
             print("✅ Kết nối MySQL thành công!")
-            
             cursor = connection.cursor(buffered=True)
             
-            # Đọc và thực thi file ETL SQL
-            print("📖 Đọc file 04_mysql_populate_dimensions_fixed.sql...")
+            # Disable foreign key checks
+            cursor.execute('SET FOREIGN_KEY_CHECKS = 0')
             
-            with open('04_mysql_populate_dimensions_fixed.sql', 'r', encoding='utf-8') as file:
-                sql_commands = file.read()
+            # Step 1: Import CSV data
+            print("📂 Bước 1: Import CSV data...")
+            try:
+                df = pd.read_csv('vietnamese_tiki_products_backpacks_suitcases.csv')
+                print(f"✅ Đọc được {len(df)} records từ CSV")
+                
+                # Clear staging table
+                cursor.execute('TRUNCATE TABLE STAGING_Products')
+                
+                # Insert data
+                insert_query = '''
+                INSERT INTO STAGING_Products 
+                (row_index, id, name, description, original_price, price, fulfillment_type, 
+                 brand, review_count, rating_average, favourite_count, pay_later, 
+                 current_seller, date_created, number_of_images, vnd_cashback, has_video, 
+                 category, quantity_sold)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                '''
+                
+                data_to_insert = []
+                for index, row in df.iterrows():
+                    data_to_insert.append(tuple(row))
+                    if len(data_to_insert) >= 500:
+                        cursor.executemany(insert_query, data_to_insert)
+                        data_to_insert = []
+                
+                if data_to_insert:
+                    cursor.executemany(insert_query, data_to_insert)
+                
+                connection.commit()
+                
+                cursor.execute('SELECT COUNT(*) FROM STAGING_Products')
+                count = cursor.fetchone()[0]
+                print(f"✅ Import thành công: {count} records vào STAGING_Products")
+                
+            except FileNotFoundError:
+                print("❌ Không tìm thấy file CSV, bỏ qua bước import")
+            except Exception as e:
+                print(f"⚠️  Lỗi import CSV: {e}")
             
-            # Tách các câu lệnh SQL
-            commands = sql_commands.split(';')
+            # Step 2: Clear existing data
+            print("\n🗑️ Bước 2: Xóa dữ liệu cũ...")
+            cursor.execute('TRUNCATE TABLE Fact_product_stats')
+            cursor.execute('TRUNCATE TABLE DIM_Brand')
+            cursor.execute('TRUNCATE TABLE DIM_Seller')
+            cursor.execute('TRUNCATE TABLE DIM_Fulfillment_Type')
+            print("✅ Đã xóa dữ liệu cũ")
             
-            print("🔄 Thực thi các câu lệnh ETL...")
-            print()
+            # Step 3: Populate dimensions
+            print("\n🏗️ Bước 3: Populate dimension tables...")
             
-            for i, command in enumerate(commands):
-                command = command.strip()
-                if command and not command.startswith('--'):
-                    try:
-                        cursor.execute(command)
-                        
-                        # Lấy kết quả nếu có
-                        if cursor.with_rows:
-                            results = cursor.fetchall()
-                            if results:
-                                for row in results:
-                                    if len(row) == 1:
-                                        print(f"   {row[0]}")
-                                    else:
-                                        print(f"   {' | '.join(map(str, row))}")
-                        
-                        connection.commit()
-                        
-                    except Error as e:
-                        if "doesn't exist" not in str(e) and "Duplicate entry" not in str(e):
-                            print(f"⚠️  Lỗi câu lệnh {i+1}: {e}")
-                        continue
+            # DIM_Brand
+            cursor.execute('''
+            INSERT IGNORE INTO DIM_Brand (brand_name)
+            SELECT DISTINCT 
+                CASE 
+                    WHEN brand IS NULL OR TRIM(brand) = '' THEN 'Unknown'
+                    ELSE TRIM(brand)
+                END as brand_name
+            FROM STAGING_Products
+            ''')
+            cursor.execute('SELECT COUNT(*) FROM DIM_Brand')
+            brand_count = cursor.fetchone()[0]
+            print(f"   DIM_Brand populated: {brand_count} records")
+            
+            # DIM_Seller
+            cursor.execute('''
+            INSERT IGNORE INTO DIM_Seller (seller_name)
+            SELECT DISTINCT
+                CASE 
+                    WHEN current_seller IS NULL OR TRIM(current_seller) = '' THEN 'Unknown Seller'
+                    ELSE TRIM(current_seller)
+                END as seller_name
+            FROM STAGING_Products
+            ''')
+            cursor.execute('SELECT COUNT(*) FROM DIM_Seller')
+            seller_count = cursor.fetchone()[0]
+            print(f"   DIM_Seller populated: {seller_count} records")
+            
+            # DIM_Fulfillment_Type
+            cursor.execute('''
+            INSERT INTO DIM_Fulfillment_Type (fulfillment_type, description)
+            VALUES 
+                ('dropship', 'Dropshipping fulfillment'),
+                ('tiki_delivery', 'Tiki delivery'),
+                ('seller_delivery', 'Seller delivery'),
+                ('unknown', 'Unknown fulfillment')
+            ''')
+            cursor.execute('SELECT COUNT(*) FROM DIM_Fulfillment_Type')
+            fulfillment_count = cursor.fetchone()[0]
+            print(f"   DIM_Fulfillment_Type populated: {fulfillment_count} records")
+            
+            # Step 4: Populate fact table
+            print("\n📊 Bước 4: Populate fact table...")
+            cursor.execute('''
+            INSERT INTO Fact_product_stats (
+                product_id, brand_id, seller_id, fulfillment_id,
+                price, quantity_sold, rating_average, review_count
+            )
+            SELECT 
+                sp.id as product_id,
+                db.brand_id,
+                ds.seller_id,
+                df.fulfillment_id,
+                IFNULL(sp.price, 0) as price,
+                IFNULL(sp.quantity_sold, 0) as quantity_sold,
+                IFNULL(sp.rating_average, 0.0) as rating_average,
+                IFNULL(sp.review_count, 0) as review_count
+            FROM STAGING_Products sp
+            INNER JOIN DIM_Brand db ON db.brand_name = CASE 
+                WHEN sp.brand IS NULL OR TRIM(sp.brand) = '' THEN 'Unknown'
+                ELSE TRIM(sp.brand)
+            END
+            INNER JOIN DIM_Seller ds ON ds.seller_name = CASE 
+                WHEN sp.current_seller IS NULL OR TRIM(sp.current_seller) = '' THEN 'Unknown Seller'
+                ELSE TRIM(sp.current_seller)
+            END
+            INNER JOIN DIM_Fulfillment_Type df ON df.fulfillment_type = CASE 
+                WHEN sp.fulfillment_type = 'dropship' THEN 'dropship'
+                WHEN sp.fulfillment_type = 'tiki_delivery' THEN 'tiki_delivery'
+                WHEN sp.fulfillment_type = 'seller_delivery' THEN 'seller_delivery'
+                ELSE 'unknown'
+            END
+            WHERE sp.id IS NOT NULL
+            ''')
+            
+            cursor.execute('SELECT COUNT(*) FROM Fact_product_stats')
+            fact_count = cursor.fetchone()[0]
+            print(f"   Fact_product_stats populated: {fact_count} records")
+            
+            # Re-enable foreign key checks
+            cursor.execute('SET FOREIGN_KEY_CHECKS = 1')
+            connection.commit()
             
             print("\n✅ ETL Process hoàn thành!")
             
@@ -75,6 +179,8 @@ def run_etl_process():
             
     except Error as e:
         print(f"❌ Lỗi ETL Process: {e}")
+    except Exception as e:
+        print(f"❌ Lỗi không xác định: {e}")
 
 def verify_etl_results(cursor):
     """Kiểm tra kết quả ETL"""
@@ -84,7 +190,7 @@ def verify_etl_results(cursor):
     try:
         # Đếm records trong các bảng - theo schema mới
         tables = [
-            'DIM_Brand', 'DIM_Seller', 'DIM_Fulfillment_Type', 'DIM_Time',
+            'DIM_Brand', 'DIM_Seller', 'DIM_Fulfillment_Type',
             'Fact_product_stats', 'STAGING_Products'
         ]
         
@@ -151,12 +257,14 @@ def verify_etl_results(cursor):
         """)
         
         price_stats = cursor.fetchone()
-        if price_stats:
+        if price_stats and price_stats[0] is not None:
             print("💰 Thống kê giá:")
             print(f"   Giá thấp nhất: {price_stats[0]:,.0f} VND")
             print(f"   Giá cao nhất: {price_stats[1]:,.0f} VND") 
             print(f"   Giá trung bình: {price_stats[2]:,.0f} VND")
             print(f"   Tổng sản phẩm có giá: {price_stats[3]:,}")
+        else:
+            print("💰 Thống kê giá: Không có dữ liệu")
         
         print()
         
@@ -188,106 +296,6 @@ def verify_etl_results(cursor):
     except Error as e:
         print(f"❌ Lỗi kiểm tra kết quả: {e}")
 
-def create_sample_queries():
-    """Tạo các query mẫu để test data warehouse"""
-    print("\n📝 TẠO CÁC QUERY MẪU")
-    print("=" * 35)
-    
-    queries = """-- ========================================
-
-USE ProductDW;
-
--- 1. Phân tích theo thương hiệu
-SELECT 'BRAND ANALYSIS' as Analysis_Type;
-SELECT 
-    b.brand_name,
-    COUNT(f.product_id) as total_products,
-    SUM(f.quantity_sold) as total_quantity_sold,
-    AVG(f.current_price) as avg_price,
-    SUM(f.current_price * f.quantity_sold) as total_revenue
-FROM DIM_Brand b
-INNER JOIN FACT_Product_Sales f ON b.brand_id = f.brand_id
-GROUP BY b.brand_id, b.brand_name
-ORDER BY total_revenue DESC
-LIMIT 10;
-
--- 2. Phân tích theo danh mục
-SELECT 'CATEGORY ANALYSIS' as Analysis_Type;
-SELECT 
-    c.category_name,
-    COUNT(f.product_id) as total_products,
-    AVG(f.current_price) as avg_price,
-    AVG(f.rating_average) as avg_rating,
-    SUM(f.quantity_sold) as total_sold
-FROM DIM_Category c  
-INNER JOIN FACT_Product_Sales f ON c.category_id = f.category_id
-GROUP BY c.category_id, c.category_name
-ORDER BY total_products DESC;
-
--- 3. Top sản phẩm bán chạy
-SELECT 'TOP SELLING PRODUCTS' as Analysis_Type;
-SELECT 
-    p.product_name,
-    b.brand_name,
-    c.category_name,
-    f.current_price,
-    f.quantity_sold,
-    f.rating_average,
-    (f.current_price * f.quantity_sold) as revenue
-FROM FACT_Product_Sales f
-INNER JOIN DIM_Product p ON f.product_id = p.product_id
-INNER JOIN DIM_Brand b ON f.brand_id = b.brand_id  
-INNER JOIN DIM_Category c ON f.category_id = c.category_id
-ORDER BY f.quantity_sold DESC, revenue DESC
-LIMIT 10;
-
--- 4. Phân tích giá theo khoảng
-SELECT 'PRICE RANGE ANALYSIS' as Analysis_Type;
-SELECT 
-    CASE 
-        WHEN current_price < 100000 THEN 'Under 100K'
-        WHEN current_price < 500000 THEN '100K-500K'
-        WHEN current_price < 1000000 THEN '500K-1M'  
-        WHEN current_price < 5000000 THEN '1M-5M'
-        ELSE 'Above 5M'
-    END as price_range,
-    COUNT(*) as product_count,
-    AVG(rating_average) as avg_rating,
-    SUM(quantity_sold) as total_sold
-FROM FACT_Product_Sales
-WHERE current_price > 0
-GROUP BY 
-    CASE 
-        WHEN current_price < 100000 THEN 'Under 100K'
-        WHEN current_price < 500000 THEN '100K-500K'
-        WHEN current_price < 1000000 THEN '500K-1M'
-        WHEN current_price < 5000000 THEN '1M-5M'  
-        ELSE 'Above 5M'
-    END
-ORDER BY MIN(current_price);
-
--- 5. Phân tích seller performance  
-SELECT 'SELLER PERFORMANCE' as Analysis_Type;
-SELECT 
-    s.seller_name,
-    COUNT(f.product_id) as total_products,
-    AVG(f.current_price) as avg_product_price,
-    AVG(f.rating_average) as avg_rating,
-    SUM(f.quantity_sold) as total_quantity_sold
-FROM DIM_Seller s
-INNER JOIN FACT_Product_Sales f ON s.seller_id = f.seller_id  
-GROUP BY s.seller_id, s.seller_name
-HAVING total_products >= 5
-ORDER BY total_quantity_sold DESC
-LIMIT 15;
-"""
-    
-    with open('sample_olap_queries.sql', 'w', encoding='utf-8') as f:
-        f.write(queries)
-    
-    print("✅ Đã tạo file: sample_olap_queries.sql")
-    print("💡 Bạn có thể chạy file này để test Data Warehouse")
-
 def main():
     """Hàm chính"""
     print("🏗️  ETL PROCESS - POPULATE DIMENSION TABLES")
@@ -297,9 +305,6 @@ def main():
     
     # Chạy ETL
     run_etl_process()
-    
-    # Tạo sample queries
-    create_sample_queries()
     
     end_time = time.time()
     duration = end_time - start_time
