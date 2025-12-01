@@ -146,8 +146,8 @@ jobs:
 
     - name: Populate data warehouse
       run: |
-        mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 04_mysql_populate_dimensions.sql
-        mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 05_mysql_populate_fact_table.sql
+        mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 04_mysql_populate_dimensions_fixed.sql
+        mysql -h 127.0.0.1 -P 3306 -u root -proot_password ProductDW < 05_mysql_populate_fact_table_fixed.sql
 
     - name: Run data preprocessing
       run: |
