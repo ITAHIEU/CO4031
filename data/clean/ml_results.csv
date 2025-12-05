@@ -1,0 +1,10 @@
+Model_Type,Model_Name,Score,Metric
+Regression,Random Forest,0.7444623981357235,R2
+Regression,Gradient Boosting,0.8160055632905336,R2
+Regression,Neural Network,0.4168181671388489,R2
+Regression,Support Vector,-0.021766455015117092,R2
+Regression,K-Neighbors,0.47350475334647957,R2
+Classification,Random Forest,1.0,Accuracy
+Classification,Neural Network,0.9962721342031687,Accuracy
+Classification,Support Vector,0.9794967381174278,Accuracy
+Classification,K-Neighbors,0.9524697110904008,Accuracy
