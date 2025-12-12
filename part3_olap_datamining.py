@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score, mean_squared_error, r2_score, classification_report, accuracy_score
 from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, GradientBoostingRegressor
@@ -19,7 +19,13 @@ print("=== PHAN 3. AP DUNG CONG CU / THUAT TOAN ===")
 print("Dang tai du lieu sach...")
 
 # Doc du lieu da duoc lam sach
-df = pd.read_csv('data/clean/products_clean.csv')
+try:
+    df = pd.read_csv('data/clean/products_clean.csv', encoding='utf-8', low_memory=False, 
+                     error_bad_lines=False, warn_bad_lines=False, engine='python')
+except:
+    # Neu loi, thu doc voi cac tham so khac
+    df = pd.read_csv('data/clean/products_clean.csv', encoding='utf-8', 
+                     on_bad_lines='skip', engine='python')
 print(f"Da tai {len(df):,} san pham tu du lieu sach")
 
 # ========================================
@@ -232,6 +238,160 @@ print("Da luu bieu do Clustering: 'data/clean/clustering_analysis.png'")
 # Luu ket qua clustering
 df.to_csv('data/clean/products_with_clusters.csv', index=False, encoding='utf-8')
 print("Da luu du lieu co cluster: 'data/clean/products_with_clusters.csv'")
+
+# ========================================
+# 3.2.2. DBSCAN CLUSTERING
+# ========================================
+print("\n3.2.2. DBSCAN CLUSTERING - DENSITY-BASED CLUSTERING")
+print("=" * 60)
+
+# Thuc hien DBSCAN clustering
+print("\nThuc hien DBSCAN clustering...")
+print("DBSCAN khong can chi dinh so cluster truoc, tu dong phat hien dua tren mat do")
+
+# Tim tham so eps va min_samples tot nhat
+from sklearn.neighbors import NearestNeighbors
+
+# Tim khoang cach den k-nearest neighbors
+neighbors = NearestNeighbors(n_neighbors=5)
+neighbors_fit = neighbors.fit(X_scaled)
+distances, indices = neighbors_fit.kneighbors(X_scaled)
+
+# Sap xep khoang cach
+distances = np.sort(distances[:, -1], axis=0)
+
+# Chon eps tu diem khuu cua do thi khoang cach (tam ung dung)
+eps = np.percentile(distances, 90)  # Chon percentile 90 lam eps
+min_samples = 5  # So mau toi thieu de tao mot cluster
+
+print(f"Tham so DBSCAN: eps={eps:.3f}, min_samples={min_samples}")
+
+# Chay DBSCAN
+dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+df['dbscan_cluster'] = dbscan.fit_predict(X_scaled)
+
+# Thong ke ket qua DBSCAN
+n_clusters_dbscan = len(set(df['dbscan_cluster'])) - (1 if -1 in df['dbscan_cluster'] else 0)
+n_noise = list(df['dbscan_cluster']).count(-1)
+
+print(f"\nDBSCAN da phat hien:")
+print(f"   So cluster: {n_clusters_dbscan}")
+print(f"   So diem nhieu (noise): {n_noise:,} ({n_noise/len(df)*100:.1f}%)")
+
+print(f"\nPhan bo DBSCAN cluster:")
+dbscan_counts = df['dbscan_cluster'].value_counts().sort_index()
+for cluster, count in dbscan_counts.items():
+    if cluster == -1:
+        print(f"   Noise (-1): {count:,} san pham ({count/len(df)*100:.1f}%)")
+    else:
+        print(f"   Cluster {cluster}: {count:,} san pham ({count/len(df)*100:.1f}%)")
+
+# Mo ta cac cluster DBSCAN (khong tinh noise)
+print(f"\nMO TA CAC DBSCAN CLUSTER:")
+print("=" * 50)
+
+for i in sorted(df['dbscan_cluster'].unique()):
+    if i == -1:
+        continue  # Bo qua noise
+    cluster_data = df[df['dbscan_cluster'] == i]
+    print(f"\nDBSCAN CLUSTER {i} ({len(cluster_data):,} san pham):")
+    print(f"   Gia TB: {cluster_data['price'].mean():,.0f} VND")
+    print(f"   Rating TB: {cluster_data['rating_average'].mean():.2f}")
+    print(f"   So luong ban TB: {cluster_data['quantity_sold'].mean():.1f}")
+    print(f"   Favourite TB: {cluster_data['favourite_count'].mean():.1f}")
+    print(f"   Doanh thu TB: {cluster_data['revenue'].mean():,.0f} VND")
+
+# So sanh K-means vs DBSCAN
+print(f"\nSO SANH K-MEANS VS DBSCAN:")
+print("=" * 50)
+print(f"K-Means:")
+print(f"   - So cluster: {best_k} (chi dinh truoc)")
+print(f"   - Silhouette Score: {max(silhouette_scores):.3f}")
+print(f"   - Moi diem deu duoc gan vao 1 cluster")
+print(f"\nDBSCAN:")
+print(f"   - So cluster: {n_clusters_dbscan} (tu dong phat hien)")
+if n_clusters_dbscan > 1:
+    # Chi tinh silhouette cho DBSCAN neu co it nhat 2 cluster (khong ke noise)
+    dbscan_data_for_silhouette = df[df['dbscan_cluster'] != -1]
+    if len(dbscan_data_for_silhouette) > 0:
+        X_scaled_for_silhouette = X_scaled[df['dbscan_cluster'] != -1]
+        dbscan_silhouette = silhouette_score(X_scaled_for_silhouette, dbscan_data_for_silhouette['dbscan_cluster'])
+        print(f"   - Silhouette Score: {dbscan_silhouette:.3f} (khong ke noise)")
+print(f"   - Phat hien {n_noise:,} diem nhieu/ngoai le")
+print(f"   - Dua tren mat do du lieu, khong can chi dinh K")
+
+# Tao bieu do so sanh DBSCAN
+print(f"\nDang tao bieu do DBSCAN clustering...")
+
+fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+fig.suptitle('DBSCAN CLUSTERING ANALYSIS', fontsize=16, fontweight='bold')
+
+# Tao color map cho DBSCAN (noise co mau den)
+unique_dbscan_clusters = sorted(df['dbscan_cluster'].unique())
+dbscan_colors = plt.cm.tab10(np.linspace(0, 1, max(len(unique_dbscan_clusters), 10)))
+color_map = {cluster: 'gray' if cluster == -1 else dbscan_colors[cluster] for cluster in unique_dbscan_clusters}
+
+# 1. Scatter plot: Price vs Quantity_sold (DBSCAN)
+for cluster in unique_dbscan_clusters:
+    cluster_data = df[df['dbscan_cluster'] == cluster]
+    label = 'Noise' if cluster == -1 else f'Cluster {cluster}'
+    color = color_map[cluster]
+    axes[0, 0].scatter(cluster_data['price']/1000, cluster_data['quantity_sold'], 
+                      c=[color], label=label, alpha=0.6 if cluster != -1 else 0.3)
+axes[0, 0].set_title('DBSCAN: Gia vs So luong ban', fontweight='bold')
+axes[0, 0].set_xlabel('Gia (nghin VND)')
+axes[0, 0].set_ylabel('So luong ban')
+axes[0, 0].legend()
+
+# 2. Scatter plot: Price vs Rating (DBSCAN)
+for cluster in unique_dbscan_clusters:
+    cluster_data = df[df['dbscan_cluster'] == cluster]
+    label = 'Noise' if cluster == -1 else f'Cluster {cluster}'
+    color = color_map[cluster]
+    axes[0, 1].scatter(cluster_data['price']/1000, cluster_data['rating_average'], 
+                      c=[color], label=label, alpha=0.6 if cluster != -1 else 0.3)
+axes[0, 1].set_title('DBSCAN: Gia vs Rating', fontweight='bold')
+axes[0, 1].set_xlabel('Gia (nghin VND)')
+axes[0, 1].set_ylabel('Rating Average')
+axes[0, 1].legend()
+
+# 3. So sanh so luong san pham giua K-means va DBSCAN
+kmeans_counts = df['cluster'].value_counts().sort_index()
+dbscan_valid_counts = df[df['dbscan_cluster'] != -1]['dbscan_cluster'].value_counts().sort_index()
+
+x_kmeans = np.arange(len(kmeans_counts))
+x_dbscan = np.arange(len(dbscan_valid_counts))
+
+axes[1, 0].bar(x_kmeans - 0.2, kmeans_counts.values, width=0.4, label='K-Means', alpha=0.7, color='blue')
+axes[1, 0].bar(x_dbscan + 0.2, dbscan_valid_counts.values, width=0.4, label='DBSCAN', alpha=0.7, color='red')
+axes[1, 0].set_title('So sanh phan bo Cluster: K-Means vs DBSCAN', fontweight='bold')
+axes[1, 0].set_xlabel('Cluster ID')
+axes[1, 0].set_ylabel('So luong san pham')
+axes[1, 0].legend()
+axes[1, 0].set_xticks(range(max(len(kmeans_counts), len(dbscan_valid_counts))))
+
+# 4. Phan bo diem nhieu cua DBSCAN
+noise_data = df[df['dbscan_cluster'] == -1]
+valid_data = df[df['dbscan_cluster'] != -1]
+
+labels = ['Valid Clusters', 'Noise']
+sizes = [len(valid_data), len(noise_data)]
+colors_pie = ['lightgreen', 'lightcoral']
+explode = (0.05, 0.1)  # Lam noi bat phan noise
+
+axes[1, 1].pie(sizes, explode=explode, labels=labels, colors=colors_pie,
+              autopct='%1.1f%%', shadow=True, startangle=90)
+axes[1, 1].set_title('DBSCAN: Phan bo diem hop le vs Noise', fontweight='bold')
+
+plt.tight_layout()
+plt.savefig('data/clean/dbscan_clustering_analysis.png', dpi=300, bbox_inches='tight')
+plt.show()
+
+print("Da luu bieu do DBSCAN: 'data/clean/dbscan_clustering_analysis.png'")
+
+# Luu ket qua DBSCAN
+df.to_csv('data/clean/products_with_all_clusters.csv', index=False, encoding='utf-8')
+print("Da luu du lieu co tat ca cluster (K-means + DBSCAN): 'data/clean/products_with_all_clusters.csv'")
 
 # ========================================
 # 3.3. DU DOAN VA PHAN TICH NANG CAO
